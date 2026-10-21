@@ -11,84 +11,47 @@
 
   <!-- ========== 首页 ========== -->
   <div id="page-home" class="page active">
+    <!-- 语言切换组件 -->
+    <button class="lang-switch" id="langSwitch" onclick="toggleLang()">
+      <span class="lang-icon">🌐</span><span id="langSwitchText">中文</span>
+    </button>
     <div class="home-content">
       <div class="home-cover">
         <img src="images/cover.png" alt="基因小博士" onerror="this.style.display='none'">
       </div>
-      <h1 class="home-title">基因小博士</h1>
-      <p class="home-sub">改造生物对决</p>
-      <p class="home-desc">帮助小动物们选择合适的基因<br>改造成超级生物</p>
-      <button class="btn-start" onclick="selectDifficulty()">开始游戏</button>
+      <h1 class="home-title" data-i18n="home_title">基因小博士</h1>
+      <p class="home-sub" data-i18n="home_sub">改造生物对决</p>
+      <p class="home-desc" data-i18n-html="home_desc">帮助小动物们选择合适的基因<br>改造成超级生物</p>
+      <button class="btn-start" data-i18n="btn_start" onclick="selectDifficulty()">开始游戏</button>
     </div>
   </div>
 
   <!-- ========== 难度选择（弹窗） ========== -->
   <div class="modal-overlay" id="modalDifficulty" onclick="closeModal('difficulty')">
     <div class="modal-box" onclick="event.stopPropagation()">
-      <h2>选择对战难度</h2>
+      <h2 data-i18n="diff_title">选择对战难度</h2>
       <div class="diff-options">
         <div class="diff-opt easy" onclick="pickDifficulty('easy')">
           <span class="diff-emoji">🌱</span>
-          <strong>简单模式</strong>
+          <strong data-i18n="diff_easy">简单模式</strong>
         </div>
         <div class="diff-opt medium" onclick="pickDifficulty('medium')">
           <span class="diff-emoji">🔬</span>
-          <strong>中等模式</strong>
+          <strong data-i18n="diff_medium">中等模式</strong>
         </div>
         <div class="diff-opt hard" onclick="pickDifficulty('hard')">
           <span class="diff-emoji">⚡</span>
-          <strong>困难模式</strong>
+          <strong data-i18n="diff_hard">困难模式</strong>
         </div>
       </div>
-      <p class="modal-hint">点击空白处关闭</p>
+      <p class="modal-hint" data-i18n="hint_close">点击空白处关闭</p>
     </div>
   </div>
 
-  <!-- ========== 规则讲解（弹窗翻页） ========== -->
+  <!-- ========== 规则讲解（弹窗翻页，内容由 JS 生成） ========== -->
   <div class="modal-overlay" id="modalRules" onclick="closeModal('rules')">
     <div class="modal-box rules-box" onclick="event.stopPropagation()">
-      <div class="rules-viewport" id="rulesViewport">
-        <div class="rule-slide" data-index="0">
-          <div class="rule-emoji">🧑‍🔬</div>
-          <h3>你是基因小博士</h3>
-          <p>你要帮助小动物选择合适的基因，把它们改造成更强、更适合环境的超级生物。</p>
-        </div>
-        <div class="rule-slide" data-index="1">
-          <div class="rule-emoji">🃏</div>
-          <h3>认识四种卡牌</h3>
-          <div class="rule-tags">
-            <span class="rt green">生物载体卡</span> 小动物，有基础分<br>
-            <span class="rt purple">基因片段卡</span> 增强能力，需适配环境<br>
-            <span class="rt blue">特殊卡牌</span> 每局最多1张<br>
-            <span class="rt yellow">环境卡</span> 决定对战环境
-          </div>
-        </div>
-        <div class="rule-slide" data-index="2">
-          <div class="rule-emoji">🔗</div>
-          <h3>什么是适配</h3>
-          <p>基因必须适配生物的环境才生效。水中基因装给陆地动物不会生效。</p>
-        </div>
-        <div class="rule-slide" data-index="3">
-          <div class="rule-emoji">🔄</div>
-          <h3>一局怎么玩</h3>
-          <p>翻环境卡 → 选生物 → 装基因 → 用特殊卡 → 亮牌 → 算分</p>
-        </div>
-        <div class="rule-slide" data-index="4">
-          <div class="rule-emoji">🧮</div>
-          <h3>怎么算分</h3>
-          <p>总分 = 基础分 + 基因攻击 + 环境加成 + 特殊卡 − 对手抵消</p>
-        </div>
-        <div class="rule-slide" data-index="5">
-          <div class="rule-emoji">🗑️</div>
-          <h3>弃牌规则</h3>
-          <p>用过的卡牌进入弃牌堆，后续局数不能再使用。</p>
-        </div>
-        <div class="rule-slide" data-index="6">
-          <div class="rule-emoji">✅</div>
-          <h3>准备好了吗？</h3>
-          <button class="btn-start" id="btnRulesConfirm" onclick="confirmRules()">我已全部了解，开始抽卡！</button>
-        </div>
-      </div>
+      <div class="rules-viewport" id="rulesViewport"></div>
       <button class="rules-arrow rules-prev" id="rulesPrev" onclick="slideRules(-1)">◀</button>
       <button class="rules-arrow rules-next" id="rulesNext" onclick="slideRules(1)">▶</button>
       <div class="rules-dots" id="rulesDots"></div>
@@ -104,7 +67,7 @@
     <div class="draw-grid" id="drawGrid"></div>
     <!-- 手牌堆 -->
     <div class="draw-hand-pile" id="drawHandPile">
-      <div class="dhp-title">🃏 我的手牌</div>
+      <div class="dhp-title" data-i18n="draw_myhand">🃏 我的手牌</div>
       <div class="dhp-cards" id="dhpCards"></div>
     </div>
   </div>
@@ -115,7 +78,7 @@
     <div class="battle-topbar">
       <button class="top-icon" id="btnRulesTop" onclick="openRulesModal()">📖</button>
       <div class="top-round" id="topRound">第 1 / 3 局</div>
-      <div class="top-score">你 <b id="topPlayerScore">0</b> : <b id="topAIScore">0</b> AI</div>
+      <div class="top-score" id="topScore"></div>
       <button class="top-icon" id="btnHandbookTop" onclick="openHandbookModal()">📖</button>
     </div>
 
@@ -130,38 +93,38 @@
     <div class="battle-center" id="battleCenter">
       <div class="env-zone" id="envZone">
         <div class="env-card-auto" id="envCardAuto">
-          <span class="env-auto-label">当前环境</span>
+          <span class="env-auto-label" data-i18n="env_current">当前环境</span>
         </div>
       </div>
     </div>
 
     <!-- 玩家区域（下方） -->
     <div class="battle-player-area" id="battlePlayerArea">
-      <div class="player-label">🧑‍🔬 你</div>
+      <div class="player-label">🧑‍🔬 <span data-i18n="you_label">你</span></div>
       <!-- 三排手牌 -->
       <div class="player-hand-rows" id="playerHandRows">
         <div class="hand-row" id="handRowCreature">
-          <div class="hand-row-label green">🧬 生物</div>
+          <div class="hand-row-label green">🧬 <span data-i18n="short_creature">生物</span></div>
           <div class="hand-row-cards" id="handRowCreatureCards"></div>
         </div>
         <div class="hand-row" id="handRowGene">
-          <div class="hand-row-label purple">🔬 基因</div>
+          <div class="hand-row-label purple">🔬 <span data-i18n="short_gene">基因</span></div>
           <div class="hand-row-cards" id="handRowGeneCards"></div>
         </div>
         <div class="hand-row" id="handRowSpecial">
-          <div class="hand-row-label blue">⚡ 特殊</div>
+          <div class="hand-row-label blue">⚡ <span data-i18n="short_special">特殊</span></div>
           <div class="hand-row-cards" id="handRowSpecialCards"></div>
         </div>
       </div>
       <!-- 操作区 -->
       <div class="player-action-bar">
         <div class="preview-row" id="previewRow"></div>
-        <button class="btn-confirm" id="btnConfirm" onclick="confirmBattle()">确认出战</button>
+        <button class="btn-confirm" id="btnConfirm" data-i18n="btn_confirm" onclick="confirmBattle()">确认出战</button>
       </div>
     </div>
 
     <!-- 左下角：手牌查看 -->
-    <button class="corner-btn corner-left" onclick="openHandModal()">🃏<span>手牌</span></button>
+    <button class="corner-btn corner-left" onclick="openHandModal()">🃏<span data-i18n="corner_hand">手牌</span></button>
     <!-- 右下角：弃牌堆 -->
     <button class="corner-btn corner-right" onclick="openDiscardModal()">🗑️<span id="discardBadge">0</span></button>
   </div>
@@ -175,7 +138,7 @@
       <button class="rules-arrow rules-prev" onclick="slideMiniRules(-1)">◀</button>
       <button class="rules-arrow rules-next" onclick="slideMiniRules(1)">▶</button>
       <div class="rules-dots" id="rulesMiniDots"></div>
-      <p class="modal-hint">点击空白处关闭</p>
+      <p class="modal-hint" data-i18n="hint_close">点击空白处关闭</p>
     </div>
   </div>
 
@@ -183,41 +146,41 @@
   <div class="modal-overlay" id="modalHandbook" onclick="closeModal('handbook')">
     <div class="modal-box handbook-box" onclick="event.stopPropagation()">
       <div class="handbook-tabs">
-        <button class="htab active" onclick="switchHBTab('creature',this)">生物</button>
-        <button class="htab" onclick="switchHBTab('gene',this)">基因</button>
-        <button class="htab" onclick="switchHBTab('special',this)">特殊</button>
-        <button class="htab" onclick="switchHBTab('env',this)">环境</button>
+        <button class="htab active" data-i18n="short_creature" onclick="switchHBTab('creature',this)">生物</button>
+        <button class="htab" data-i18n="short_gene" onclick="switchHBTab('gene',this)">基因</button>
+        <button class="htab" data-i18n="short_special" onclick="switchHBTab('special',this)">特殊</button>
+        <button class="htab" data-i18n="short_env" onclick="switchHBTab('env',this)">环境</button>
       </div>
       <div class="handbook-grid" id="handbookGrid"></div>
-      <p class="modal-hint">点击空白处关闭</p>
+      <p class="modal-hint" data-i18n="hint_close">点击空白处关闭</p>
     </div>
   </div>
 
   <!-- 小窗：手牌查看 -->
   <div class="modal-overlay" id="modalHand" onclick="closeModal('hand')">
     <div class="modal-box hand-box" onclick="event.stopPropagation()">
-      <h3>🃏 我的手牌</h3>
+      <h3 data-i18n="hand_title">🃏 我的手牌</h3>
       <div id="modalHandContent"></div>
-      <p class="modal-hint">点击空白处关闭</p>
+      <p class="modal-hint" data-i18n="hint_close">点击空白处关闭</p>
     </div>
   </div>
 
   <!-- 小窗：弃牌堆 -->
   <div class="modal-overlay" id="modalDiscard" onclick="closeModal('discard')">
     <div class="modal-box discard-box" onclick="event.stopPropagation()">
-      <h3>🗑️ 弃牌堆</h3>
+      <h3 data-i18n="discard_title">🗑️ 弃牌堆</h3>
       <div id="modalDiscardContent"></div>
-      <p class="modal-hint">点击空白处关闭</p>
+      <p class="modal-hint" data-i18n="hint_close">点击空白处关闭</p>
     </div>
   </div>
 
   <!-- 小窗：亮牌结果 -->
   <div class="modal-overlay" id="modalReveal" onclick="event.stopPropagation()">
     <div class="modal-box reveal-box">
-      <h2>⚔️ 双方亮牌</h2>
+      <h2 data-i18n="reveal_title">⚔️ 双方亮牌</h2>
       <div class="reveal-dual">
         <div class="rv-side">
-          <h4>🧑‍🔬 你</h4>
+          <h4>🧑‍🔬 <span data-i18n="you_label">你</span></h4>
           <div id="rvPlayer"></div>
         </div>
         <div class="rv-vs">VS</div>
@@ -226,7 +189,7 @@
           <div id="rvAI"></div>
         </div>
       </div>
-      <button class="btn-start" id="btnGoCalc" onclick="goCalcScore()">开始算分 🧮</button>
+      <button class="btn-start" id="btnGoCalc" data-i18n="btn_calc" onclick="goCalcScore()">开始算分 🧮</button>
     </div>
   </div>
 
@@ -234,8 +197,8 @@
   <div class="modal-overlay" id="modalRoundResult" onclick="nextAfterResult()">
     <div class="modal-box result-box" onclick="event.stopPropagation()">
       <div id="roundResultContent"></div>
-      <button class="btn-start" id="btnAfterRound" onclick="nextAfterResult()">继续 ▶</button>
-      <p class="modal-hint">点击空白处继续</p>
+      <button class="btn-start" id="btnAfterRound" data-i18n="btn_next" onclick="nextAfterResult()">进入下一局</button>
+      <p class="modal-hint" data-i18n="hint_continue">点击空白处继续</p>
     </div>
   </div>
 
@@ -244,10 +207,10 @@
     <div class="modal-box final-box" onclick="event.stopPropagation()">
       <div id="finalContent"></div>
       <div class="final-btns">
-        <button class="btn-start" onclick="restartGame()">再来一局</button>
-        <button class="btn-start secondary" onclick="goHome()">返回首页</button>
+        <button class="btn-start" data-i18n="btn_restart" onclick="restartGame()">再来一局</button>
+        <button class="btn-start secondary" data-i18n="btn_home" onclick="goHome()">返回首页</button>
       </div>
-      <p class="modal-hint">点击空白处返回首页</p>
+      <p class="modal-hint" data-i18n="hint_home">点击空白处返回首页</p>
     </div>
   </div>
 
@@ -257,8 +220,8 @@
       <h3 id="confirmSkipTitle">提示</h3>
       <p id="confirmSkipMsg"></p>
       <div class="confirm-btns">
-        <button class="btn-start secondary" onclick="closeModal('ConfirmSkip')">返回修改</button>
-        <button class="btn-start" id="btnSkipForce" onclick="confirmBattleForce()">仍然确定</button>
+        <button class="btn-start secondary" data-i18n="btn_back" onclick="closeModal('ConfirmSkip')">返回修改</button>
+        <button class="btn-start" id="btnSkipForce" data-i18n="btn_force" onclick="confirmBattleForce()">仍然确定</button>
       </div>
     </div>
   </div>
@@ -269,6 +232,7 @@
 </div>
 
 <script src="data.js"></script>
+<script src="i18n.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

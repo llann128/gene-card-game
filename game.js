@@ -31,7 +31,71 @@ let G = {
 
   // 手牌区当前 tab
   handTab: 'creature',
+  hbTab: 'creature',
 };
+
+// ========== 语言 / 国际化 ==========
+let LANG = 'zh';
+try { LANG = localStorage.getItem('geneLang') || 'zh'; } catch (e) { LANG = 'zh'; }
+
+// 取文案（支持 {key} 占位符）
+function t(key, vars) {
+  let s = (STRINGS[LANG] && STRINGS[LANG][key]) || (STRINGS.zh && STRINGS.zh[key]) || key;
+  if (vars) { Object.keys(vars).forEach(k => { s = s.split('{' + k + '}').join(vars[k]); }); }
+  return s;
+}
+// 卡牌名/描述（英文取 CARD_EN）
+function cName(card) { return (LANG === 'en' && CARD_EN[card.id]) ? CARD_EN[card.id].name : card.name; }
+function cDesc(card) { return (LANG === 'en' && CARD_EN[card.id]) ? CARD_EN[card.id].desc : card.desc; }
+// 环境（栖息地）名
+function hName(h) { return LANG === 'en' ? (HABITAT_EN[h] || h) : (HABITATS[h] || h); }
+function habStr(arr) { return arr.map(h => hName(h)).join('/'); }
+
+// 切换语言
+function toggleLang() { setLang(LANG === 'zh' ? 'en' : 'zh'); }
+
+function setLang(lang) {
+  LANG = lang;
+  try { localStorage.setItem('geneLang', lang); } catch (e) {}
+  document.documentElement.lang = (lang === 'en' ? 'en' : 'zh-CN');
+  document.title = (lang === 'en' ? 'Gene Whiz Kid: Creature Modification Duel' : '基因小博士：生物改造对决');
+  applyStaticI18n();
+  refreshCurrentView();
+}
+
+// 刷新静态 data-i18n 元素
+function applyStaticI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+  const lt = document.getElementById('langSwitchText');
+  if (lt) lt.textContent = (LANG === 'zh' ? '中文' : 'English');
+}
+
+// 切换语言后重渲染当前界面
+function refreshCurrentView() {
+  const drawActive = document.getElementById('page-draw').classList.contains('active');
+  const battleActive = document.getElementById('page-battle').classList.contains('active');
+
+  if (drawActive && G.drawOffered && G.drawOffered.creatures.length) renderDrawStep();
+  if (battleActive && G.currentEnv) {
+    updateBattleTopBar();
+    renderBattleEnv();
+    renderAllHandRows();
+    updatePreviewRow();
+    renderAiArea();
+  }
+
+  // 已打开的弹窗同步刷新
+  if (document.getElementById('modalRules').classList.contains('show')) {
+    buildRulesSlides('rulesViewport', 'rulesDots', true); updateRulesNav();
+  }
+  if (document.getElementById('modalRulesMini').classList.contains('show')) {
+    buildRulesSlides('rulesMiniViewport', 'rulesMiniDots', false); updateMiniRulesNav();
+  }
+  if (document.getElementById('modalHand').classList.contains('show')) renderHandModal();
+  if (document.getElementById('modalDiscard').classList.contains('show')) openDiscardModal();
+  if (document.getElementById('modalHandbook').classList.contains('show')) switchHBTab(G.hbTab || 'creature', null);
+}
 
 // ========== 工具 ==========
 function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -67,23 +131,27 @@ function pickDifficulty(diff) {
 // ========== 规则弹窗翻页 ==========
 function buildRulesSlides(viewportId, dotsId, isInitial) {
   const slides = [
-    { emoji: '🧑‍🔬', title: '你是基因小博士', text: '你要帮助小动物选择合适的基因，把它们改造成更强、更适合环境的超级生物。' },
-    { emoji: '🃏', title: '认识四种卡牌', html: '<span class="rt green">生物载体卡</span>小动物，有基础分<br><span class="rt purple">基因片段卡</span>增强能力，需适配环境<br><span class="rt blue">特殊卡牌</span>每局最多1张<br><span class="rt yellow">环境卡</span>决定对战环境' },
-    { emoji: '🔗', title: '什么是适配', text: '基因必须适配生物的环境才生效。例如水中基因装给陆地动物不会生效。' },
-    { emoji: '🔄', title: '一局怎么玩', text: '翻环境卡 → 选生物 → 装基因 → 用特殊卡 → 亮牌 → 算分 → 弃牌' },
-    { emoji: '🧮', title: '怎么算分', text: '总分 = 生物基础分 + 有效基因攻击力 + 环境加成 + 特殊卡效果 − 对手有效基因攻击力' },
-    { emoji: '🗑️', title: '弃牌规则', text: '每局用过的卡牌进入弃牌堆，后续局数不能再使用。请认真选择！' },
+    { emoji: '🧑‍🔬', title: t('rule1_title'), text: t('rule1_text') },
+    { emoji: '🃏', title: t('rule2_title'), html:
+        `<span class="rt green">${t('type_creature')}</span>${t('rule2_creature_note')}<br>` +
+        `<span class="rt purple">${t('type_gene')}</span>${t('rule2_gene_note')}<br>` +
+        `<span class="rt blue">${t('type_special')}</span>${t('rule2_special_note')}<br>` +
+        `<span class="rt yellow">${t('type_env')}</span>${t('rule2_env_note')}` },
+    { emoji: '🔗', title: t('rule3_title'), text: t('rule3_text') },
+    { emoji: '🔄', title: t('rule4_title'), text: t('rule4_text') },
+    { emoji: '🧮', title: t('rule5_title'), text: t('rule5_text') },
+    { emoji: '🗑️', title: t('rule6_title'), text: t('rule6_text') },
   ];
 
   if (isInitial) {
-    slides.push({ emoji: '✅', title: '准备好了吗？', confirm: true });
+    slides.push({ emoji: '✅', title: t('rule_ready_title'), confirm: true });
   }
 
   const vp = document.getElementById(viewportId);
   vp.innerHTML = slides.map((s, i) => {
     let body;
     if (s.confirm) {
-      body = '<button class="btn-start" id="btnRulesConfirm" onclick="confirmRules()">我已全部了解，开始抽卡！</button>';
+      body = `<button class="btn-start" id="btnRulesConfirm" onclick="confirmRules()">${t('rule_ready_btn')}</button>`;
     } else if (s.html) {
       body = `<div class="rule-tags">${s.html}</div>`;
     } else {
@@ -154,6 +222,7 @@ function openHandbookModal() {
 }
 
 function switchHBTab(tab, btn) {
+  G.hbTab = tab;
   document.querySelectorAll('#modalHandbook .htab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   const grid = document.getElementById('handbookGrid');
@@ -162,16 +231,16 @@ function switchHBTab(tab, btn) {
     grid.innerHTML = ENV_CARDS.map(c => `
       <div class="hb-card env-card">
         <div class="env-emoji">${c.emoji}</div>
-        <div class="hb-name">${c.name}</div>
-        <div class="hb-desc">${c.desc}</div>
+        <div class="hb-name">${cName(c)}</div>
+        <div class="hb-desc">${cDesc(c)}</div>
       </div>`).join('');
   } else {
     let cards = tab === 'creature' ? CREATURE_CARDS : (tab === 'gene' ? GENE_CARDS : SPECIAL_CARDS);
     grid.innerHTML = cards.map(c => `
       <div class="hb-card">
-        <img src="${c.image}" alt="${c.name}" onerror="this.style.background='#eef';this.style.minHeight='80px'">
-        <div class="hb-name">${c.name}${c.effect === 'env' ? '<span style="font-size:10px;color:#e8a33d;"> (系统抽取)</span>' : ''}</div>
-        <div class="hb-info">${tab === 'creature' ? '基础分:'+c.baseScore+' | '+c.geneSlots+'槽' : (tab==='gene' ? (c.special==='heal' ? '抵消攻击' : (c.attack===0 ? '解锁环境' : '攻击:'+c.attack)) : c.desc.slice(0,8)+'...')}</div>
+        <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef';this.style.minHeight='80px'">
+        <div class="hb-name">${cName(c)}${c.effect === 'env' ? `<span style="font-size:10px;color:#e8a33d;"> ${t('sys_draw_tag')}</span>` : ''}</div>
+        <div class="hb-info">${tab === 'creature' ? t('hb_base')+':'+c.baseScore+' | '+c.geneSlots+t('hb_slots') : (tab==='gene' ? (c.special==='heal' ? t('hb_negate') : (c.attack===0 ? t('hb_unlock') : t('hb_attack')+':'+c.attack)) : (LANG === 'en' ? cDesc(c) : c.desc.slice(0,8)+'...'))}</div>
       </div>`).join('');
   }
 }
@@ -186,11 +255,11 @@ function renderHandModal() {
   const h = G.playerHand;
   const content = document.getElementById('modalHandContent');
   const total = h.creatures.length + h.genes.length + h.specials.length;
-  if (total === 0) { content.innerHTML = '<p class="empty-note">手牌为空</p>'; return; }
+  if (total === 0) { content.innerHTML = `<p class="empty-note">${t('hand_empty')}</p>`; return; }
   let html = '';
-  if (h.creatures.length) html += `<div class="hand-group"><h4>🧬 生物载体卡 (${h.creatures.length})</h4><div class="hand-chips">${h.creatures.map(c => `<span class="chip green">${c.name}</span>`).join('')}</div></div>`;
-  if (h.genes.length) html += `<div class="hand-group"><h4>🔬 基因片段卡 (${h.genes.length})</h4><div class="hand-chips">${h.genes.map(g => `<span class="chip purple">${g.name}</span>`).join('')}</div></div>`;
-  if (h.specials.length) html += `<div class="hand-group"><h4>⚡ 特殊卡牌 (${h.specials.length})</h4><div class="hand-chips">${h.specials.map(s => `<span class="chip blue">${s.name}</span>`).join('')}</div></div>`;
+  if (h.creatures.length) html += `<div class="hand-group"><h4>🧬 ${t('type_creature')} (${h.creatures.length})</h4><div class="hand-chips">${h.creatures.map(c => `<span class="chip green">${cName(c)}</span>`).join('')}</div></div>`;
+  if (h.genes.length) html += `<div class="hand-group"><h4>🔬 ${t('type_gene')} (${h.genes.length})</h4><div class="hand-chips">${h.genes.map(g => `<span class="chip purple">${cName(g)}</span>`).join('')}</div></div>`;
+  if (h.specials.length) html += `<div class="hand-group"><h4>⚡ ${t('type_special')} (${h.specials.length})</h4><div class="hand-chips">${h.specials.map(s => `<span class="chip blue">${cName(s)}</span>`).join('')}</div></div>`;
   content.innerHTML = html;
 }
 
@@ -200,14 +269,14 @@ function openDiscardModal() {
   const dp = G.discardPile;
   const total = dp.creatures.length + dp.genes.length + dp.specials.length;
   const content = document.getElementById('modalDiscardContent');
-  if (total === 0) { content.innerHTML = '<p class="empty-note">弃牌堆为空</p>'; return; }
-  let html = `<p class="discard-total">共 <b>${total}</b> 张已弃置</p>`;
+  if (total === 0) { content.innerHTML = `<p class="empty-note">${t('discard_empty')}</p>`; return; }
+  let html = `<p class="discard-total">${t('discard_total', { n: total })}</p>`;
   const allC = CREATURE_CARDS.filter(c => dp.creatures.includes(c.id));
   const allG = GENE_CARDS.filter(g => dp.genes.includes(g.id));
   const allS = SPECIAL_CARDS.filter(s => dp.specials.includes(s.id));
-  if (allC.length) html += `<div class="hand-group"><h4>🧬 生物 (${allC.length})</h4><div class="hand-chips">${allC.map(c=>`<span class="chip green">${c.name}</span>`).join('')}</div></div>`;
-  if (allG.length) html += `<div class="hand-group"><h4>🔬 基因 (${allG.length})</h4><div class="hand-chips">${allG.map(g=>`<span class="chip purple">${g.name}</span>`).join('')}</div></div>`;
-  if (allS.length) html += `<div class="hand-group"><h4>⚡ 特殊 (${allS.length})</h4><div class="hand-chips">${allS.map(s=>`<span class="chip blue">${s.name}</span>`).join('')}</div></div>`;
+  if (allC.length) html += `<div class="hand-group"><h4>🧬 ${t('short_creature')} (${allC.length})</h4><div class="hand-chips">${allC.map(c=>`<span class="chip green">${cName(c)}</span>`).join('')}</div></div>`;
+  if (allG.length) html += `<div class="hand-group"><h4>🔬 ${t('short_gene')} (${allG.length})</h4><div class="hand-chips">${allG.map(g=>`<span class="chip purple">${cName(g)}</span>`).join('')}</div></div>`;
+  if (allS.length) html += `<div class="hand-group"><h4>⚡ ${t('short_special')} (${allS.length})</h4><div class="hand-chips">${allS.map(s=>`<span class="chip blue">${cName(s)}</span>`).join('')}</div></div>`;
   content.innerHTML = html;
 }
 
@@ -256,12 +325,12 @@ function showPage(id) {
 
 function renderDrawStep() {
   const step = G.drawStep;
-  const labels = ['抽取生物载体卡', '抽取基因片段卡', '抽取特殊卡牌'];
+  const labels = [t('draw_step1'), t('draw_step2'), t('draw_step3')];
   const counts = [3, 6, 2];
   const keys = ['creatures', 'genes', 'specials'];
   const backImgs = [CARD_BACKS.creature, CARD_BACKS.gene, CARD_BACKS.special];
 
-  document.getElementById('drawStage').textContent = `第 ${step + 1} 步：${labels[step]}`;
+  document.getElementById('drawStage').textContent = t('draw_stage', { n: step + 1, step: labels[step] });
   document.getElementById('drawCount').textContent = `${G.drawPicked[keys[step]].length} / ${counts[step]}`;
 
   const grid = document.getElementById('drawGrid');
@@ -281,8 +350,8 @@ function renderDrawStep() {
     div.style.animationDelay = (i * 0.06) + 's';
     div.innerHTML = `
       <div class="dc-inner">
-        <div class="dc-front"><img src="${card.image}" alt="${card.name}" onerror="this.innerHTML='<div class=dc-place>${card.name}</div>'"></div>
-        <div class="dc-back"><img src="${backImgs[step]}" alt="卡背" onerror="this.innerHTML='<div class=dc-place>?</div>'"></div>
+        <div class="dc-front"><img src="${card.image}" alt="${cName(card)}" onerror="this.innerHTML='<div class=dc-place>${cName(card)}</div>'"></div>
+        <div class="dc-back"><img src="${backImgs[step]}" alt="${LANG === 'en' ? 'Card back' : '卡背'}" onerror="this.innerHTML='<div class=dc-place>?</div>'"></div>
       </div>
     `;
     if (G.drawPicked[keys[step]].length < counts[step]) {
@@ -293,7 +362,7 @@ function renderDrawStep() {
 
   // 当前阶段抽满后显示完成提示
   if (G.drawPicked[keys[step]].length >= counts[step]) {
-    grid.innerHTML += '<div class="draw-complete">✅ 本阶段抽取完成</div>';
+    grid.innerHTML += `<div class="draw-complete">${t('draw_complete')}</div>`;
   }
 
   // 底部手牌堆（已翻面的大框）
@@ -304,7 +373,7 @@ function renderDrawHandPile() {
   const pile = document.getElementById('dhpCards');
   const all = [...G.drawPicked.creatures, ...G.drawPicked.genes, ...G.drawPicked.specials];
   if (all.length === 0) {
-    pile.innerHTML = '<div class="dhp-empty">点击上方卡牌，抽取到此处</div>';
+    pile.innerHTML = `<div class="dhp-empty">${t('draw_empty_hint')}</div>`;
     return;
   }
 
@@ -316,13 +385,13 @@ function renderDrawHandPile() {
   let html = '';
 
   if (creatures.length) {
-    html += `<div class="dhp-group"><div class="dhp-group-label green">🧬 生物载体卡 (${creatures.length})</div><div class="dhp-group-cards">`;
+    html += `<div class="dhp-group"><div class="dhp-group-label green">🧬 ${t('type_creature')} (${creatures.length})</div><div class="dhp-group-cards">`;
     html += creatures.map(c => `
       <div class="dhp-card" id="dhp-${c.id}">
-        <img src="${c.image}" alt="${c.name}" onerror="this.style.background='#eef'">
+        <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef'">
         <div class="dhp-info">
-          <div class="dhp-name">${c.name}</div>
-          <div class="dhp-stat">基础 ${c.baseScore} | 槽位 ${c.geneSlots} | ${HABITATS[c.habitat[0]] || c.habitat.join('/')}</div>
+          <div class="dhp-name">${cName(c)}</div>
+          <div class="dhp-stat">${t('stat_base')} ${c.baseScore} | ${t('stat_slots')} ${c.geneSlots} | ${habStr(c.habitat)}</div>
         </div>
       </div>
     `).join('');
@@ -330,18 +399,18 @@ function renderDrawHandPile() {
   }
 
   if (genes.length) {
-    html += `<div class="dhp-group"><div class="dhp-group-label purple">🔬 基因片段卡 (${genes.length})</div><div class="dhp-group-cards">`;
+    html += `<div class="dhp-group"><div class="dhp-group-label purple">🔬 ${t('type_gene')} (${genes.length})</div><div class="dhp-group-cards">`;
     html += genes.map(c => {
       let atkStr;
-      if (c.special === 'heal') atkStr = '抵消全部攻击';
-      else if (c.attack === 0) atkStr = '解锁环境';
-      else atkStr = '攻击 +' + c.attack;
+      if (c.special === 'heal') atkStr = t('stat_negate');
+      else if (c.attack === 0) atkStr = t('stat_unlock');
+      else atkStr = t('stat_attack') + ' +' + c.attack;
       return `
       <div class="dhp-card" id="dhp-${c.id}">
-        <img src="${c.image}" alt="${c.name}" onerror="this.style.background='#eef'">
+        <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef'">
         <div class="dhp-info">
-          <div class="dhp-name">${c.name}</div>
-          <div class="dhp-stat">${atkStr} | ${c.compatibleHabitats.map(h=>HABITATS[h]||h).join('/')}</div>
+          <div class="dhp-name">${cName(c)}</div>
+          <div class="dhp-stat">${atkStr} | ${c.compatibleHabitats.map(h => hName(h)).join('/')}</div>
         </div>
       </div>
     `}).join('');
@@ -349,13 +418,13 @@ function renderDrawHandPile() {
   }
 
   if (specials.length) {
-    html += `<div class="dhp-group"><div class="dhp-group-label blue">⚡ 特殊卡牌 (${specials.length})</div><div class="dhp-group-cards">`;
+    html += `<div class="dhp-group"><div class="dhp-group-label blue">⚡ ${t('type_special')} (${specials.length})</div><div class="dhp-group-cards">`;
     html += specials.map(c => `
       <div class="dhp-card" id="dhp-${c.id}">
-        <img src="${c.image}" alt="${c.name}" onerror="this.style.background='#eef'">
+        <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef'">
         <div class="dhp-info">
-          <div class="dhp-name">${c.name}</div>
-          <div class="dhp-stat">${c.desc}</div>
+          <div class="dhp-name">${cName(c)}</div>
+          <div class="dhp-stat">${cDesc(c)}</div>
         </div>
       </div>
     `).join('');
@@ -427,9 +496,8 @@ function startBattle() {
 }
 
 function updateBattleTopBar() {
-  document.getElementById('topRound').textContent = `第 ${G.round + 1} / 3 局`;
-  document.getElementById('topPlayerScore').textContent = G.playerWins;
-  document.getElementById('topAIScore').textContent = G.aiWins;
+  document.getElementById('topRound').textContent = t('round_label', { n: G.round + 1, total: 3 });
+  document.getElementById('topScore').textContent = t('score_label', { p: G.playerWins, a: G.aiWins });
   const total = G.discardPile.creatures.length + G.discardPile.genes.length + G.discardPile.specials.length;
   document.getElementById('discardBadge').textContent = total;
 }
@@ -438,9 +506,9 @@ function renderBattleEnv() {
   const env = G.currentEnv;
   document.getElementById('envCardAuto').innerHTML = `
     <div class="env-card-emoji">${env.emoji}</div>
-    <div class="env-card-title">${env.name}</div>
-    <div class="env-card-desc">${env.desc}</div>
-    <div style="font-size:11px;color:#999;margin-top:6px;">系统每局自动抽取，不参与抽卡</div>
+    <div class="env-card-title">${cName(env)}</div>
+    <div class="env-card-desc">${cDesc(env)}</div>
+    <div style="font-size:11px;color:#999;margin-top:6px;">${t('env_auto_note')}</div>
   `;
 }
 
@@ -455,25 +523,26 @@ function renderAiArea() {
   const specialCount = ah.specials.length;
 
   let html = '';
+  const backAlt = LANG === 'en' ? 'Card back' : '卡背';
 
   // 生物卡背
   for (let i = 0; i < creatureCount; i++) {
     html += `<div class="ai-card-back creature">
-      <img src="${CARD_BACKS.creature}" alt="卡背" onerror="this.innerHTML='<span>?</span>'">
+      <img src="${CARD_BACKS.creature}" alt="${backAlt}" onerror="this.innerHTML='<span>?</span>'">
     </div>`;
   }
 
   // 基因卡背
   for (let i = 0; i < geneCount; i++) {
     html += `<div class="ai-card-back gene">
-      <img src="${CARD_BACKS.gene}" alt="卡背" onerror="this.innerHTML='<span>?</span>'">
+      <img src="${CARD_BACKS.gene}" alt="${backAlt}" onerror="this.innerHTML='<span>?</span>'">
     </div>`;
   }
 
   // 特殊卡背
   for (let i = 0; i < specialCount; i++) {
     html += `<div class="ai-card-back special">
-      <img src="${CARD_BACKS.special}" alt="卡背" onerror="this.innerHTML='<span>?</span>'">
+      <img src="${CARD_BACKS.special}" alt="${backAlt}" onerror="this.innerHTML='<span>?</span>'">
     </div>`;
   }
 
@@ -488,7 +557,7 @@ function renderAiArea() {
   document.getElementById('aiEnvCard').innerHTML = `
     <div class="ai-env-mini">
       <span>${env.emoji}</span>
-      <span>${env.name}</span>
+      <span>${cName(env)}</span>
     </div>
   `;
 }
@@ -509,7 +578,7 @@ function renderAllHandRows() {
 function renderHandRow(containerId, cards, type, sel) {
   const container = document.getElementById(containerId);
   if (!cards || cards.length === 0) {
-    container.innerHTML = '<div class="hand-row-empty">暂无</div>';
+    container.innerHTML = `<div class="hand-row-empty">${t('empty_row')}</div>`;
     return;
   }
 
@@ -524,8 +593,8 @@ function renderHandRow(containerId, cards, type, sel) {
     } else if (type === 'gene') {
       selected = sel.genes.some(g => g.id === c.id);
       if (sel.creature) {
-        if (!isCompat(c, sel.creature)) { disabled = true; tag = '<span class="card-tag bad-tag">不适配</span>'; }
-        else if (!selected && sel.genes.length >= sel.creature.geneSlots) { disabled = true; tag = '<span class="card-tag bad-tag">已满</span>'; }
+        if (!isCompat(c, sel.creature)) { disabled = true; tag = `<span class="card-tag bad-tag">${t('tag_incompat')}</span>`; }
+        else if (!selected && sel.genes.length >= sel.creature.geneSlots) { disabled = true; tag = `<span class="card-tag bad-tag">${t('tag_full')}</span>`; }
       }
     } else if (type === 'special') {
       selected = sel.special && sel.special.id === c.id;
@@ -536,10 +605,16 @@ function renderHandRow(containerId, cards, type, sel) {
     if (selected) cls += ' selected';
     if (disabled) cls += ' disabled';
 
+    const statHtml = type === 'creature'
+      ? `<div class="hrc-stat">${t('stat_base')}${c.baseScore} | ${c.geneSlots}${t('stat_slots')}</div>`
+      : (type === 'gene'
+        ? (c.special === 'heal' ? `<div class="hrc-stat">${t('hb_negate')}</div>` : (c.attack === 0 ? `<div class="hrc-stat">${t('stat_unlock')}</div>` : `<div class="hrc-stat">${t('stat_attack')}${c.attack}</div>`))
+        : `<div class="hrc-stat">${LANG === 'en' ? cDesc(c).slice(0, 18) : c.desc.slice(0, 4)}</div>`);
+
     return `<div class="${cls}" onclick="${disabled ? '' : `clickHandCardRow('${c.id}','${type}')`}">
-      <img src="${c.image}" alt="${c.name}" onerror="this.style.background='#eef'">
-      <div class="hrc-name">${c.name}</div>
-      ${type==='creature' ? `<div class="hrc-stat">基础${c.baseScore} | ${c.geneSlots}槽</div>` : (type==='gene' ? (c.special==='heal' ? `<div class="hrc-stat">抵消攻击</div>` : (c.attack===0 ? `<div class="hrc-stat">解锁</div>` : `<div class="hrc-stat">攻${c.attack}</div>`)) : `<div class="hrc-stat">${c.desc.slice(0,4)}</div>`)}
+      <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef'">
+      <div class="hrc-name">${cName(c)}</div>
+      ${statHtml}
       ${tag}
       ${selected ? '<div class="card-tag sel-tag">✓</div>' : ''}
     </div>`;
@@ -560,15 +635,15 @@ function clickHandCardRow(id, type) {
       sel.genes = [];
     }
   } else if (type === 'gene') {
-    if (!sel.creature) { toast('请先选择一个小动物！'); return; }
+    if (!sel.creature) { toast(t('toast_select_creature')); return; }
     const card = G.playerHand.genes.find(g => g.id === id);
     if (!card) return;
     const already = sel.genes.some(g => g.id === id);
     if (already) {
       sel.genes = sel.genes.filter(g => g.id !== id);
     } else {
-      if (!isCompat(card, sel.creature)) { toast('这个基因不适合当前小动物，换一张试试吧！'); return; }
-      if (sel.genes.length >= sel.creature.geneSlots) { toast('这个小动物装不下更多基因啦！'); return; }
+      if (!isCompat(card, sel.creature)) { toast(t('toast_incompat')); return; }
+      if (sel.genes.length >= sel.creature.geneSlots) { toast(t('toast_slots_full')); return; }
       sel.genes.push(card);
     }
   } else if (type === 'special') {
@@ -577,7 +652,7 @@ function clickHandCardRow(id, type) {
     if (sel.special && sel.special.id === id) {
       sel.special = null;
     } else {
-      if (sel.special) { toast('每局最多只能使用一张特殊卡哦！'); return; }
+      if (sel.special) { toast(t('toast_one_special')); return; }
       sel.special = card;
     }
   }
@@ -590,7 +665,7 @@ function updatePreviewRow() {
   const sel = G.playerSel;
   const row = document.getElementById('previewRow');
   if (!sel.creature) {
-    row.innerHTML = '<span class="preview-text">请选择出战组合</span>';
+    row.innerHTML = `<span class="preview-text">${t('preview_empty')}</span>`;
     return;
   }
   const base = sel.creature.baseScore;
@@ -602,10 +677,10 @@ function updatePreviewRow() {
     if (sel.special.effect === 'env' && sel.special.envType && sel.creature.habitat.includes(sel.special.envType)) spBonus = 1;
   }
   const total = base + geneAtk + eb + spBonus;
-  const geneStr = hasHeal ? '抵消攻击' : ('基因' + geneAtk);
+  const geneStr = hasHeal ? t('hb_negate') : (t('preview_gene') + geneAtk);
   row.innerHTML = `
-    <span class="preview-text">${sel.creature.name}</span>
-    <span class="preview-breakdown">基础${base} + ${geneStr} + 环境${eb} + 特殊${spBonus}</span>
+    <span class="preview-text">${cName(sel.creature)}</span>
+    <span class="preview-breakdown">${t('preview_base')}${base} + ${geneStr} + ${t('preview_env')}${eb} + ${t('preview_special')}${spBonus}</span>
     <span class="preview-total">= ${total}</span>
   `;
 }
@@ -655,43 +730,40 @@ function aiDecide() {
 
 // ========== 确认出战 → 亮牌 ==========
 function confirmBattle() {
-  if (!G.playerSel.creature) { toast('请选择一个生物载体再出战！'); return; }
-  
+  if (!G.playerSel.creature) { toast(t('toast_need_creature')); return; }
+
   // 检查是否没选基因或没选特殊卡
   const sel = G.playerSel;
   const hasGenes = sel.genes.length > 0;
   const hasSpecial = sel.special !== null;
   const hasAvailableGenes = G.playerHand.genes.some(g => isCompat(g, sel.creature));
   const hasAvailableSpecials = G.playerHand.specials.length > 0;
-  
-  if (!hasGenes && hasAvailableGenes && hasAvailableSpecials && !hasSpecial) {
-    // 两者都没选
-    document.getElementById('confirmSkipTitle').textContent = '⚠️ 提示';
-    document.getElementById('confirmSkipMsg').textContent = '你还没有装备基因和特殊卡，确定要空身上阵吗？';
+
+  function showSkip(msgKey) {
+    document.getElementById('confirmSkipTitle').textContent = t('warn_title');
+    document.getElementById('confirmSkipMsg').textContent = t(msgKey);
     openModal('ConfirmSkip');
     document.getElementById('btnSkipForce').onclick = () => { closeModal('ConfirmSkip'); doConfirmBattle(); };
+  }
+
+  if (!hasGenes && hasAvailableGenes && hasAvailableSpecials && !hasSpecial) {
+    showSkip('skip_both');
     return;
   }
   if (!hasGenes && hasAvailableGenes) {
-    document.getElementById('confirmSkipTitle').textContent = '⚠️ 提示';
-    document.getElementById('confirmSkipMsg').textContent = '你还没有装备任何基因，确定要直接出战吗？';
-    openModal('ConfirmSkip');
-    document.getElementById('btnSkipForce').onclick = () => { closeModal('ConfirmSkip'); doConfirmBattle(); };
+    showSkip('skip_gene');
     return;
   }
   if (!hasSpecial && hasAvailableSpecials) {
-    document.getElementById('confirmSkipTitle').textContent = '⚠️ 提示';
-    document.getElementById('confirmSkipMsg').textContent = '你还没有使用特殊卡，确定要直接出战吗？';
-    openModal('ConfirmSkip');
-    document.getElementById('btnSkipForce').onclick = () => { closeModal('ConfirmSkip'); doConfirmBattle(); };
+    showSkip('skip_special');
     return;
   }
-  
+
   doConfirmBattle();
 }
 
 function confirmBattleForce() {
-  // 由 btnSkipForce onclick 触发
+  // 由 btnSkipForce onclick 触发（逻辑已在 confirmBattle 中绑定）
 }
 
 function doConfirmBattle() {
@@ -706,16 +778,16 @@ function renderRevealModal() {
 
   // 基因卡描述（处理特殊效果）
   function geneLabel(g) {
-    if (g.special === 'heal') return `${g.name} (抵消全部攻击)`;
-    if (g.attack === 0) return `${g.name} (解锁环境)`;
-    return `${g.name} (+${g.attack})`;
+    if (g.special === 'heal') return `${cName(g)} (${t('stat_negate')})`;
+    if (g.attack === 0) return `${cName(g)} (${t('stat_unlock')})`;
+    return `${cName(g)} (+${g.attack})`;
   }
 
   // 玩家
   document.getElementById('rvPlayer').innerHTML = `
-    <div class="rv-creature"><img src="${ps.creature.image}" alt="${ps.creature.name}" onerror="this.style.background='#eef'"><span>${ps.creature.name}</span></div>
-    ${ps.genes.map(g => `<div class="rv-gene"><img src="${g.image}" alt="${g.name}" onerror="this.style.background='#eef'"><span>${geneLabel(g)}</span></div>`).join('')}
-    ${ps.special ? `<div class="rv-sp">⚡ ${ps.special.name}</div>` : '<div class="rv-sp none">未使用特殊卡</div>'}
+    <div class="rv-creature"><img src="${ps.creature.image}" alt="${cName(ps.creature)}" onerror="this.style.background='#eef'"><span>${cName(ps.creature)}</span></div>
+    ${ps.genes.map(g => `<div class="rv-gene"><img src="${g.image}" alt="${cName(g)}" onerror="this.style.background='#eef'"><span>${geneLabel(g)}</span></div>`).join('')}
+    ${ps.special ? `<div class="rv-sp">⚡ ${cName(ps.special)}</div>` : `<div class="rv-sp none">${t('reveal_no_special')}</div>`}
   `;
 
   // AI 先隐藏
@@ -729,10 +801,10 @@ function renderRevealModal() {
 
   // 1秒后翻牌
   setTimeout(() => {
-    document.getElementById('rvAICreature').innerHTML = `<img src="${as.creature.image}" alt="${as.creature.name}" onerror="this.style.background='#eef'"><span>${as.creature.name}</span>`;
+    document.getElementById('rvAICreature').innerHTML = `<img src="${as.creature.image}" alt="${cName(as.creature)}" onerror="this.style.background='#eef'"><span>${cName(as.creature)}</span>`;
     document.getElementById('rvAICreature').classList.remove('hidden-card');
-    document.getElementById('rvAIGenes').innerHTML = as.genes.map(g => `<div class="rv-gene"><img src="${g.image}" alt="${g.name}" onerror="this.style.background='#eef'"><span>${geneLabel(g)}</span></div>`).join('');
-    document.getElementById('rvAISP').innerHTML = as.special ? `⚡ ${as.special.name}` : '未使用特殊卡';
+    document.getElementById('rvAIGenes').innerHTML = as.genes.map(g => `<div class="rv-gene"><img src="${g.image}" alt="${cName(g)}" onerror="this.style.background='#eef'"><span>${geneLabel(g)}</span></div>`).join('');
+    document.getElementById('rvAISP').innerHTML = as.special ? `⚡ ${cName(as.special)}` : t('reveal_no_special');
     document.getElementById('rvAISP').className = as.special ? 'rv-sp' : 'rv-sp none';
     document.getElementById('btnGoCalc').style.display = 'block';
   }, 1000);
@@ -771,7 +843,6 @@ function goCalcScore() {
       oa = oppGenes.reduce((s, g) => (g.special === 'heal' ? 0 : g.attack > 0 ? g.attack : 0), 0);
       // 盾牌卡：抵消对手特殊卡
       if (sp && sp.effect === 'shield') {
-        // 如果对手有特殊卡，本方的盾牌抵消它（但不对具体数值产生影响，这里简化为抵消对手特殊卡效果）
         if (oppSp && oppSp.effect === 'env') {
           // 对方环境卡被抵消
         }
@@ -808,30 +879,30 @@ function goCalcScore() {
 
   // 显示结算小窗
   closeModal('Reveal');
-  const verdictText = winner === 'player' ? '本局胜利！' : (winner === 'ai' ? '本局失败！' : '本局平局！');
+  const verdictText = winner === 'player' ? t('result_win') : (winner === 'ai' ? t('result_lose') : t('result_draw'));
   const verdictClass = winner === 'player' ? 'win' : (winner === 'ai' ? 'lose' : 'draw');
 
   document.getElementById('roundResultContent').innerHTML = `
-    <h2>📋 本局实验结果</h2>
+    <h2>${t('result_title')}</h2>
     <div class="rr-dual">
       <div class="rr-side">
-        <h4>🧑‍🔬 你</h4>
-        <div>基础 +${pr.base}</div><div>基因 +${pr.gs}</div><div>环境 +${pr.eb}</div><div>特殊 +${pr.sb}</div>
-        <div class="rr-neg">对手 −${pr.oa}</div>
+        <h4>🧑‍🔬 ${t('you_label')}</h4>
+        <div>${t('preview_base')} +${pr.base}</div><div>${t('preview_gene')} +${pr.gs}</div><div>${t('preview_env')} +${pr.eb}</div><div>${t('preview_special')} +${pr.sb}</div>
+        <div class="rr-neg">${t('result_opponent')} −${pr.oa}</div>
         <div class="rr-total">= ${pr.total}</div>
       </div>
       <div class="rr-side">
         <h4>🤖 AI</h4>
-        <div>基础 +${ar.base}</div><div>基因 +${ar.gs}</div><div>环境 +${ar.eb}</div><div>特殊 +${ar.sb}</div>
-        <div class="rr-neg">对手 −${ar.oa}</div>
+        <div>${t('preview_base')} +${ar.base}</div><div>${t('preview_gene')} +${ar.gs}</div><div>${t('preview_env')} +${ar.eb}</div><div>${t('preview_special')} +${ar.sb}</div>
+        <div class="rr-neg">${t('result_opponent')} −${ar.oa}</div>
         <div class="rr-total">= ${ar.total}</div>
       </div>
     </div>
     <div class="verdict ${verdictClass}">${icon} ${verdictText}</div>
-    <div class="rr-score">你 ${G.playerWins} : ${G.aiWins} AI</div>
+    <div class="rr-score">${t('score_label', { p: G.playerWins, a: G.aiWins })}</div>
   `;
 
-  document.getElementById('btnAfterRound').textContent = G.round >= 2 ? '查看最终结果' : '进入下一局';
+  document.getElementById('btnAfterRound').textContent = G.round >= 2 ? t('btn_final') : t('btn_next');
   openModal('RoundResult');
 
   // 更新对战页状态
@@ -860,11 +931,11 @@ function nextAfterResult() {
 function showFinalResult() {
   let icon, cls, title, msg;
   if (G.playerWins > G.aiWins) {
-    icon = '🏆'; cls = 'win'; title = '恭喜你成为优秀基因小博士！'; msg = '你成功改造出了更适合环境的超级生物！';
+    icon = '🏆'; cls = 'win'; title = t('final_win_title'); msg = t('final_win_msg');
   } else if (G.playerWins < G.aiWins) {
-    icon = '🤖'; cls = 'lose'; title = 'AI 小博士略胜一筹！'; msg = '再试一次，选择更适合环境的基因吧！';
+    icon = '🤖'; cls = 'lose'; title = t('final_lose_title'); msg = t('final_lose_msg');
   } else {
-    icon = '🤝'; cls = 'draw'; title = '你们打成平手！'; msg = '看来你们都是很厉害的基因研究员！';
+    icon = '🤝'; cls = 'draw'; title = t('final_draw_title'); msg = t('final_draw_msg');
   }
 
   document.getElementById('finalContent').innerHTML = `
@@ -874,10 +945,10 @@ function showFinalResult() {
     <div class="final-rounds">
       ${G.roundResults.map((r, i) => {
         const wi = r.winner === 'player' ? '✅' : (r.winner === 'ai' ? '❌' : '🤝');
-        return `<div>第${i+1}局 ${wi} 你:${r.pScore} AI:${r.aScore}</div>`;
+        return `<div>${t('final_round', { n: i + 1 })} ${wi} ${t('you_label')}:${r.pScore} AI:${r.aScore}</div>`;
       }).join('')}
     </div>
-    <div class="final-score">最终比分：你 <b>${G.playerWins}</b> : <b>${G.aiWins}</b> AI</div>
+    <div class="final-score">${t('final_score')}${t('score_label', { p: G.playerWins, a: G.aiWins })}</div>
   `;
   openModal('Final');
 }
@@ -897,7 +968,7 @@ function restartGame() {
     drawStep: 0,
     drawOffered: { creatures: [], genes: [], specials: [] },
     drawPicked: { creatures: [], genes: [], specials: [] },
-    ruleIndex: 0, rulesConfirmed: false, handTab: 'creature',
+    ruleIndex: 0, rulesConfirmed: false, handTab: 'creature', hbTab: 'creature',
   };
   initDrawPhase();
 }
@@ -909,5 +980,6 @@ function goHome() {
 
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', () => {
+  setLang(LANG);
   showPage('home');
 });
