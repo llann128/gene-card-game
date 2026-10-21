@@ -170,7 +170,7 @@ function switchHBTab(tab, btn) {
     grid.innerHTML = cards.map(c => `
       <div class="hb-card">
         <img src="${c.image}" alt="${c.name}" onerror="this.style.background='#eef';this.style.minHeight='80px'">
-        <div class="hb-name">${c.name}</div>
+        <div class="hb-name">${c.name}${c.effect === 'env' ? '<span style="font-size:10px;color:#e8a33d;"> (系统抽取)</span>' : ''}</div>
         <div class="hb-info">${tab === 'creature' ? '基础分:'+c.baseScore+' | '+c.geneSlots+'槽' : (tab==='gene' ? (c.special==='heal' ? '抵消攻击' : (c.attack===0 ? '解锁环境' : '攻击:'+c.attack)) : c.desc.slice(0,8)+'...')}</div>
       </div>`).join('');
   }
@@ -215,7 +215,8 @@ function openDiscardModal() {
 function initDrawPhase() {
   const cp = shuffle(CREATURE_CARDS);
   const gp = shuffle(GENE_CARDS);
-  const sp = shuffle(SPECIAL_CARDS);
+  // 特殊卡：排除环境卡（环境卡由系统每局开始前自动抽取，不进入玩家抽卡池）
+  const sp = shuffle(SPECIAL_CARDS.filter(s => s.effect !== 'env'));
 
   G.drawOffered = {
     creatures: cp.slice(0, 6),
@@ -225,11 +226,11 @@ function initDrawPhase() {
   G.drawPicked = { creatures: [], genes: [], specials: [] };
   G.drawStep = 0;
 
-  // AI 后台手牌
+  // AI 后台手牌（AI 的特殊卡在进入对战时分配：玩家未选择的非环境特殊卡）
   G.aiHand = {
     creatures: cp.slice(6, 9),
     genes: gp.slice(9, 15),
-    specials: sp.slice(4, 6),
+    specials: [],
   };
 
   // 重置游戏
@@ -413,9 +414,12 @@ function startBattle() {
   updateBattleTopBar();
   G.playerSel = { creature: null, genes: [], special: null };
   G.envRevealed = true;
-  // 环境自动给
+  // 环境卡：由系统在每局开始前自动抽取（玩家不会抽到环境卡）
   const pool = shuffle(ENV_CARDS);
   G.currentEnv = pool[0];
+  // AI 特殊卡：分配玩家未选择的非环境特殊卡
+  const pickedSpIds = G.playerHand.specials.map(s => s.id);
+  G.aiHand.specials = SPECIAL_CARDS.filter(s => s.effect !== 'env' && !pickedSpIds.includes(s.id));
   renderBattleEnv();
   renderAllHandRows();
   updatePreviewRow();
@@ -436,6 +440,7 @@ function renderBattleEnv() {
     <div class="env-card-emoji">${env.emoji}</div>
     <div class="env-card-title">${env.name}</div>
     <div class="env-card-desc">${env.desc}</div>
+    <div style="font-size:11px;color:#999;margin-top:6px;">系统每局自动抽取，不参与抽卡</div>
   `;
 }
 
