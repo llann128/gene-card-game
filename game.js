@@ -44,6 +44,14 @@ function t(key, vars) {
   if (vars) { Object.keys(vars).forEach(k => { s = s.split('{' + k + '}').join(vars[k]); }); }
   return s;
 }
+// 卡面图片：英文模式使用英文卡面（cards_en/），中文使用原图
+function img(card) {
+  if (LANG !== 'en') return card.image;
+  return card.image
+    .replace('cards/卡牌/生物载体卡', 'cards_en/creature')
+    .replace('cards/卡牌/基因片段卡', 'cards_en/gene')
+    .replace('cards/卡牌/特殊卡牌', 'cards_en/special');
+}
 // 卡牌名/描述（英文取 CARD_EN）
 function cName(card) { return (LANG === 'en' && CARD_EN[card.id]) ? CARD_EN[card.id].name : card.name; }
 function cDesc(card) { return (LANG === 'en' && CARD_EN[card.id]) ? CARD_EN[card.id].desc : card.desc; }
@@ -238,7 +246,7 @@ function switchHBTab(tab, btn) {
     let cards = tab === 'creature' ? CREATURE_CARDS : (tab === 'gene' ? GENE_CARDS : SPECIAL_CARDS);
     grid.innerHTML = cards.map(c => `
       <div class="hb-card">
-        <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef';this.style.minHeight='80px'">
+        <img src="${img(c)}" alt="${cName(c)}" onerror="this.style.background='#eef';this.style.minHeight='80px'">
         <div class="hb-name">${cName(c)}${c.effect === 'env' ? `<span style="font-size:10px;color:#e8a33d;"> ${t('sys_draw_tag')}</span>` : ''}</div>
         <div class="hb-info">${tab === 'creature' ? t('hb_base')+':'+c.baseScore+' | '+c.geneSlots+t('hb_slots') : (tab==='gene' ? (c.special==='heal' ? t('hb_negate') : (c.attack===0 ? t('hb_unlock') : t('hb_attack')+':'+c.attack)) : (LANG === 'en' ? cDesc(c) : c.desc.slice(0,8)+'...'))}</div>
       </div>`).join('');
@@ -350,7 +358,7 @@ function renderDrawStep() {
     div.style.animationDelay = (i * 0.06) + 's';
     div.innerHTML = `
       <div class="dc-inner">
-        <div class="dc-front"><img src="${card.image}" alt="${cName(card)}" onerror="this.innerHTML='<div class=dc-place>${cName(card)}</div>'"></div>
+        <div class="dc-front"><img src="${img(card)}" alt="${cName(card)}" onerror="this.innerHTML='<div class=dc-place>${cName(card)}</div>'"></div>
         <div class="dc-back"><img src="${backImgs[step]}" alt="${LANG === 'en' ? 'Card back' : '卡背'}" onerror="this.innerHTML='<div class=dc-place>?</div>'"></div>
       </div>
     `;
@@ -388,7 +396,7 @@ function renderDrawHandPile() {
     html += `<div class="dhp-group"><div class="dhp-group-label green">🧬 ${t('type_creature')} (${creatures.length})</div><div class="dhp-group-cards">`;
     html += creatures.map(c => `
       <div class="dhp-card" id="dhp-${c.id}">
-        <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef'">
+        <img src="${img(c)}" alt="${cName(c)}" onerror="this.style.background='#eef'">
         <div class="dhp-info">
           <div class="dhp-name">${cName(c)}</div>
           <div class="dhp-stat">${t('stat_base')} ${c.baseScore} | ${t('stat_slots')} ${c.geneSlots} | ${habStr(c.habitat)}</div>
@@ -407,7 +415,7 @@ function renderDrawHandPile() {
       else atkStr = t('stat_attack') + ' +' + c.attack;
       return `
       <div class="dhp-card" id="dhp-${c.id}">
-        <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef'">
+        <img src="${img(c)}" alt="${cName(c)}" onerror="this.style.background='#eef'">
         <div class="dhp-info">
           <div class="dhp-name">${cName(c)}</div>
           <div class="dhp-stat">${atkStr} | ${c.compatibleHabitats.map(h => hName(h)).join('/')}</div>
@@ -421,7 +429,7 @@ function renderDrawHandPile() {
     html += `<div class="dhp-group"><div class="dhp-group-label blue">⚡ ${t('type_special')} (${specials.length})</div><div class="dhp-group-cards">`;
     html += specials.map(c => `
       <div class="dhp-card" id="dhp-${c.id}">
-        <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef'">
+        <img src="${img(c)}" alt="${cName(c)}" onerror="this.style.background='#eef'">
         <div class="dhp-info">
           <div class="dhp-name">${cName(c)}</div>
           <div class="dhp-stat">${cDesc(c)}</div>
@@ -612,7 +620,7 @@ function renderHandRow(containerId, cards, type, sel) {
         : `<div class="hrc-stat">${LANG === 'en' ? cDesc(c).slice(0, 18) : c.desc.slice(0, 4)}</div>`);
 
     return `<div class="${cls}" onclick="${disabled ? '' : `clickHandCardRow('${c.id}','${type}')`}">
-      <img src="${c.image}" alt="${cName(c)}" onerror="this.style.background='#eef'">
+      <img src="${img(c)}" alt="${cName(c)}" onerror="this.style.background='#eef'">
       <div class="hrc-name">${cName(c)}</div>
       ${statHtml}
       ${tag}
@@ -785,8 +793,8 @@ function renderRevealModal() {
 
   // 玩家
   document.getElementById('rvPlayer').innerHTML = `
-    <div class="rv-creature"><img src="${ps.creature.image}" alt="${cName(ps.creature)}" onerror="this.style.background='#eef'"><span>${cName(ps.creature)}</span></div>
-    ${ps.genes.map(g => `<div class="rv-gene"><img src="${g.image}" alt="${cName(g)}" onerror="this.style.background='#eef'"><span>${geneLabel(g)}</span></div>`).join('')}
+    <div class="rv-creature"><img src="${img(ps.creature)}" alt="${cName(ps.creature)}" onerror="this.style.background='#eef'"><span>${cName(ps.creature)}</span></div>
+    ${ps.genes.map(g => `<div class="rv-gene"><img src="${img(g)}" alt="${cName(g)}" onerror="this.style.background='#eef'"><span>${geneLabel(g)}</span></div>`).join('')}
     ${ps.special ? `<div class="rv-sp">⚡ ${cName(ps.special)}</div>` : `<div class="rv-sp none">${t('reveal_no_special')}</div>`}
   `;
 
@@ -801,9 +809,9 @@ function renderRevealModal() {
 
   // 1秒后翻牌
   setTimeout(() => {
-    document.getElementById('rvAICreature').innerHTML = `<img src="${as.creature.image}" alt="${cName(as.creature)}" onerror="this.style.background='#eef'"><span>${cName(as.creature)}</span>`;
+    document.getElementById('rvAICreature').innerHTML = `<img src="${img(as.creature)}" alt="${cName(as.creature)}" onerror="this.style.background='#eef'"><span>${cName(as.creature)}</span>`;
     document.getElementById('rvAICreature').classList.remove('hidden-card');
-    document.getElementById('rvAIGenes').innerHTML = as.genes.map(g => `<div class="rv-gene"><img src="${g.image}" alt="${cName(g)}" onerror="this.style.background='#eef'"><span>${geneLabel(g)}</span></div>`).join('');
+    document.getElementById('rvAIGenes').innerHTML = as.genes.map(g => `<div class="rv-gene"><img src="${img(g)}" alt="${cName(g)}" onerror="this.style.background='#eef'"><span>${geneLabel(g)}</span></div>`).join('');
     document.getElementById('rvAISP').innerHTML = as.special ? `⚡ ${cName(as.special)}` : t('reveal_no_special');
     document.getElementById('rvAISP').className = as.special ? 'rv-sp' : 'rv-sp none';
     document.getElementById('btnGoCalc').style.display = 'block';
